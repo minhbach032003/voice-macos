@@ -289,6 +289,7 @@ public final class SpectrumTap: @unchecked Sendable {
             let loBin = loBinCalc > 1 ? loBinCalc : 1
             let hiBinCalc = loBin > Int(hi / binHz) ? loBin : Int(hi / binHz)
             let hiBin = (halfN - 1) < hiBinCalc ? (halfN - 1) : hiBinCalc
+            guard loBin <= hiBin else { continue } // This band is above the available FFT range.
             var peak: Float = 0
             for bin in loBin...hiBin {
                 if magnitudes[bin] > peak { peak = magnitudes[bin] }

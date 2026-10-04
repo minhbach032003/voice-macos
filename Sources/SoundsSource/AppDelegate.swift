@@ -17,7 +17,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     
     public func applicationDidFinishLaunching(_ notification: Notification) {
         // Redirect stdout and stderr to a file for persistent logging
-        let logPath = "/Users/mac/Documents/GitHub/voice-macos/app.log"
+        let logPath = FileManager.default.temporaryDirectory.appendingPathComponent("SoundsSource.log").path
         freopen(logPath, "a", stdout)
         freopen(logPath, "a", stderr)
         setbuf(stdout, nil)

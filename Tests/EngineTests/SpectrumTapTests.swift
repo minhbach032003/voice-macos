@@ -6,6 +6,15 @@ import Accelerate
 @testable import Engine
 
 @Suite struct SpectrumTapTests {
+    @Test func testSpectrumAtLowSampleRates() {
+        for rate: Float in [8000, 16000, 22050, 24000, 32000, 44100, 48000] {
+            let tap = SpectrumTap()
+            tap.sampleRate = rate
+            tap.computeLevels()
+            #expect(tap.levels() == Array(repeating: Float(0), count: SpectrumTap.bandCount))
+        }
+    }
+
     @Test func testMonoDownmixSingleChannel() {
         let frameCount = 64
         let channelCount = 1

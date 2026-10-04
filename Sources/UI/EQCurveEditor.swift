@@ -273,6 +273,7 @@ public struct EQCurveEditor: View {
             guard isObserved, let spectrum = spectrum else { return }
             spectrum.computeLevels()
             let latest = spectrum.levels()
+            guard latest != spectrumLevels else { return }
             withAnimation(.easeOut(duration: 0.08)) {
                 spectrumLevels = latest
             }

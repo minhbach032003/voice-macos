@@ -9,7 +9,7 @@ import AppKit
 struct AudioEngineIntegrationTests {
     
     private func createTestManager() -> AudioEngineManager {
-        let manager = AudioEngineManager()
+        let manager = AudioEngineManager(fileStore: InMemoryFileStore(), appSettingsFileURL: URL(fileURLWithPath: "/test/app-settings.json"))
         #if DEBUG
         manager.tapProvider = { _, _ in
             let dummyBuffer = RingBuffer(capacity: 64 * 1024)
@@ -136,6 +136,21 @@ struct AudioEngineIntegrationTests {
     }
 
     @Test func statePersistence() throws {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let systemID = AudioObjectID(kAudioObjectSystemObject)
+        var originalDeviceID = kAudioObjectUnknown
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        #expect(AudioObjectGetPropertyData(systemID, &address, 0, nil, &size, &originalDeviceID) == noErr)
+        defer {
+            if originalDeviceID != kAudioObjectUnknown {
+                #expect(AudioObjectSetPropertyData(systemID, &address, 0, nil, size, &originalDeviceID) == noErr)
+            }
+        }
+
         UserDefaults.standard.removeObject(forKey: "selectedDeviceUID")
         let manager = AudioEngineManager()
         
@@ -294,7 +309,7 @@ struct AudioEngineIntegrationTests {
         // Create an engine for the device (it will be in engines map)
         _ = manager.testExposeGetEngine(for: deviceID)
         let initialCount = manager.testExposeEnginesCount()
-        #expect(initialCount >= 2)
+        #expect(initialCount >= 1)
         
         // Ordinarily, deviceID is not selected and has no active routes, so it will be cleaned up
         manager.testExposeCleanupIdleEngines()
@@ -315,6 +330,32 @@ struct AudioEngineIntegrationTests {
         manager.testExposeSetDeviceChangingConfig(deviceID, isChanging: false)
         manager.testExposeCleanupIdleEngines()
         #expect(manager.testExposeEnginesCount() == initialCount - 1)
+    }
+
+    @Test func outputEngineExistsOnlyWhileAppsUseIt() {
+        let savedIDs = UserDefaults.standard.stringArray(forKey: "desiredTappedBundleIDs") ?? []
+        UserDefaults.standard.set([String](), forKey: "desiredTappedBundleIDs")
+        let manager = createTestManager()
+        defer {
+            manager.teardown()
+            UserDefaults.standard.set(savedIDs, forKey: "desiredTappedBundleIDs")
+        }
+
+        #expect(manager.testExposeEnginesCount() == 0)
+        let pid = ProcessInfo.processInfo.processIdentifier
+        manager.startAppTapping(bundleID: "com.example.performance.one", pid: pid)
+        manager.startAppTapping(bundleID: "com.example.performance.two", pid: pid)
+        #expect(manager.activeNodes.count == 2)
+        #expect(manager.testExposeEnginesCount() == 1)
+
+        manager.userStopAppTapping(bundleID: "com.example.performance.one")
+        #expect(manager.testExposeEnginesCount() == 1)
+        manager.userStopAppTapping(bundleID: "com.example.performance.two")
+        #expect(manager.testExposeEnginesCount() == 0)
+
+        manager.startAppTapping(bundleID: "com.example.performance.one", pid: pid)
+        #expect(manager.activeNodes.count == 1)
+        #expect(manager.testExposeEnginesCount() == 1)
     }
 
     @Test func newAppTappedDuringBreakIsDucked() async throws {

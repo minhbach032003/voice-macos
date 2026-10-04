@@ -239,9 +239,6 @@ public class AudioEngineManager: @unchecked Sendable {
         _suppressFollowReset = false
         followsSystemDefault = resolvedFollows
         
-        if selectedDeviceID != kAudioObjectUnknown {
-            _ = getEngine(for: selectedDeviceID)
-        }
         isRunning = true
         print("AudioEngineManager: Initialized with multi-engine output support. followsSystemDefault=\(followsSystemDefault), selectedDeviceID=\(selectedDeviceID)")
         applyDefaultPreset()
@@ -1139,7 +1136,7 @@ public class AudioEngineManager: @unchecked Sendable {
     private func cleanupIdleEngines() {
         let activeDeviceIDs = Set(appBusRoutes.values.map { $0.deviceID })
         let idleEngines = engines.keys.filter { devID in
-            devID != selectedDeviceID && !activeDeviceIDs.contains(devID) && !deviceIDsChangingConfig.contains(devID)
+            !activeDeviceIDs.contains(devID) && !deviceIDsChangingConfig.contains(devID)
         }
         
         for devID in idleEngines {
